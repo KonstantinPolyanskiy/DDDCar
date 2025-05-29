@@ -1,6 +1,6 @@
 ﻿using Microsoft.OpenApi.Models;
 
-namespace DDDCar.Auth.Extensions;
+namespace DDDCar.Api.Extensions;
 
 public static class SwaggerJwtExtension
 {
@@ -35,7 +35,7 @@ public static class SwaggerJwtExtension
 
             c.SwaggerDoc("v1", new OpenApiInfo
             {
-                Title = "DDDCar.Auth API",
+                Title = "DDDCar.Api API",
                 Version = "v1",
                 Description = "API с авторизацией через Keycloak. Поддерживает пользователей (password grant) и сервисы (client_credentials)."
             });

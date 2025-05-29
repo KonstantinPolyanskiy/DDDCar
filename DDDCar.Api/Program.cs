@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using DDDCar.Auth.Extensions;
+using DDDCar.Api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
-namespace DDDCar.Auth.Extensions;
+namespace DDDCar.Api.Extensions;
 
 public static class AuthenticationExtension
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DDDCar.Auth.Controllers;
+namespace DDDCar.Api.Controllers;
 
 [ApiController]
 [Route("api/check")]
