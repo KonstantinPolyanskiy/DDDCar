@@ -2,110 +2,131 @@
 
 namespace DDDCar.Core.AnswerObjects;
 
-public enum StandardErrorType
+public enum ModelError
+{
+    ValueIsNull,
+}
+
+public enum ApplicationError
 {
     SaveError,
     UpdateError,
     DeleteError,
-    
-    NotFoundError,
-    RequestError,
-    RequestWarning,
-    InternalServerError,
+    NotFound
 }
 
-/// <summary> Различные уровни ошибок </summary>
-public enum ErrorSeverity
+public enum ErrorKind { Domain, Application, Model }
+
+public interface IError
 {
-    /// <summary> Предупреждение </summary>
-    Warn,
-    
-    /// <summary> Критическая ошибка - ответ 2xx (Ok) невозможен </summary>
-    Critical,
+    ErrorKind       Kind      { get; } 
+    Enum            Code      { get; }   
+    string          Message   { get; }
+    bool            Fatal     { get; }
+    HttpStatusCode? HttpCode  { get; }  
 }
 
-/// <summary>
-/// Модель ошибки
-/// </summary>
-public sealed class AppError(Enum errorType, string message, ErrorSeverity severity, HttpStatusCode? code = null)
+public sealed record Error<TCode>(
+    ErrorKind       Kind,
+    TCode           Code,
+    string          Message,
+    bool            Fatal,
+    HttpStatusCode? HttpCode = null)
+    : IError where TCode : Enum
 {
-    public Enum ErrorType { get; } = errorType;
-    public string Message { get; } = message;
-    public ErrorSeverity Severity { get; } = severity;
-    public HttpStatusCode? Code { get; } = code;
+    // Явная реализация, чтобы наружу отдать Enum
+    Enum IError.Code => Code;
 }
 
-public sealed class ServiceResult<T>
+
+public sealed class Result<T>
 {
-    private readonly List<AppError> _errors = [];
-    
-    /// <summary>
-    /// Результат
-    /// </summary>
-    public T? Value { get; set; }
-    
-    public AppError[] Criticals => _errors.Where(x => x.Severity == ErrorSeverity.Critical).ToArray();
-    public AppError[] Warnings => _errors.Where(x => x.Severity == ErrorSeverity.Warn).ToArray();
-    private ServiceResult(T? value) => Value = value;
+    private readonly List<IError> _errors = new();
+    public IReadOnlyList<IError> Errors => _errors;
+    public T? Value { get; }
+    public bool IsSuccess => !_errors.Any(e => e.Fatal);
 
-    public ServiceResult<T> WithCritical(AppError error)
-    {
-        if (error.Severity is not ErrorSeverity.Critical || error.Code is null)
-            throw new ArgumentException("Попытка добавить Critical ошибку с недопустимым уровнем/без названия/без HttpStatusCode");
-        _errors.Add(error);
-        
-        return this;
-    }
-    
-    public ServiceResult<T> WithWarning(params AppError[] warning)
-    {
-        foreach (var w in warning)
-        {
-            if (w.Severity is not ErrorSeverity.Warn      
-                || w.Code is not null)
-                throw new ArgumentException(
-                    "Попытка добавить Warning ошибку с недопустимым уровнем или c not-null HttpStatusCod'ом");
-            
-            _errors.Add(w);
-        }
-        
-        return this;
-    }
-    
-    public bool IsSuccess => _errors.All(e => e.Severity != ErrorSeverity.Critical);
+    private Result(T? value) => Value = value;
 
-    public static ServiceResult<T> Success(T value) => new(value);
-    
-    public static ServiceResult<T> Failure(Enum errorType, string message, HttpStatusCode code)
-    {
-        var r = new ServiceResult<T>(default);
-        r._errors.Add(new AppError(errorType, message, ErrorSeverity.Critical, code));
+    /* ---------- фабрики ---------- */
 
+    public static Result<T> Ok(T value) => new(value);
+
+    public static Result<T> Fail(IError error)
+    {
+        var r = new Result<T>(default);
+        r._errors.Add(error);
         return r;
     }
-    
-    public static ServiceResult<T> Failure(params AppError[] errors)
+
+    public static Result<T> Fail(params IError[] errors)
     {
-        var r = new ServiceResult<T>(default);
+        var r = new Result<T>(default);
         r._errors.AddRange(errors);
-
         return r;
     }
-    
 
+    public Result<T> WithWarning(IError warn)
+    {
+        if (warn.Fatal) throw new ArgumentException("Warning cannot be fatal");
+        _errors.Add(warn);
+        return this;
+    }
     
-    public bool ContainsError<TEnum>(TEnum errorType) where TEnum : Enum =>
-        _errors.Any(e => e.ErrorType is TEnum en && en.Equals(errorType));
-    
-    public bool ContainsError(Enum errorType) =>
-        _errors.Any(e => e.ErrorType.Equals(errorType));
-}
+    public static Result<T> ModelFail<TCode>(
+        TCode code,
+        string message)
+        where TCode : Enum =>
+        Fail(new Error<TCode>(
+            ErrorKind.Model,
+            code,
+            message,
+            Fatal: true));
 
-public readonly struct Unit : IEquatable<Unit>
-{
-    public static readonly Unit Value = new();
-    public bool Equals(Unit other) => true;
-    public override bool Equals(object? obj) => obj is Unit;
-    public override int GetHashCode() => 0;
-    public override string ToString() => "()";
+    public static Result<T> DomainFail<TCode>(
+        TCode code,
+        string message)
+        where TCode : Enum =>
+        Fail(new Error<TCode>(
+            ErrorKind.Domain,
+            code,
+            message,
+            Fatal: true));
+
+    public static Result<T> AppFail<TCode>(
+        TCode code,
+        string message,
+        HttpStatusCode http)
+        where TCode : Enum =>
+        Fail(new Error<TCode>(
+            ErrorKind.Application,
+            code,
+            message,
+            Fatal: true,
+            http));
+
+    // ---------- Warning ----------
+    public static Result<T> DomainWarn<TCode>(
+        T value,
+        TCode code,
+        string message)
+        where TCode : Enum =>
+        Ok(value).WithWarning(
+            new Error<TCode>(
+                ErrorKind.Domain,
+                code,
+                message,
+                Fatal: false));
+
+    public static Result<T> AppWarn<TCode>(
+        T value,
+        TCode code,
+        string message)
+        where TCode : Enum =>
+        Ok(value).WithWarning(
+            new Error<TCode>(
+                ErrorKind.Application,
+                code,
+                message,
+                Fatal: false));
 }

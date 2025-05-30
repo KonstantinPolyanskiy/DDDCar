@@ -1,5 +1,10 @@
 ﻿namespace DDDCar.Core.DomainObjects.Actions;
 
+public enum DomainStatus
+{
+    ErrorEnoughPermission
+}
+
 public enum CreateCarAction
 {
     Success,
@@ -45,4 +50,5 @@ public enum ViewAction
 {
     Full,
     Restricted,
+    Denied,
 }

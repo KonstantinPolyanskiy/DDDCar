@@ -13,7 +13,7 @@ public class CarEntity : IEntity
     public Guid? ManagerId { get; set; }
     
     public required string Brand { get; set; }
-    public required string Color { get; set; }
+    public required Color Color { get; set; }
     public required decimal Price { get; set; }
     
     public Condition Condition { get; set; }

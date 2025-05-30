@@ -12,7 +12,7 @@ public record CarDto : IEntity
     public Guid? PhotoId { get; init; }
 
     public string? Brand { get; init; } 
-    public string? Color { get; init; } 
+    public Color? Color { get; init; } 
     public decimal? Price { get; init; }
     
     public Condition? Condition { get; init; }
@@ -23,3 +23,16 @@ public record CarDto : IEntity
     public bool IsAvailable { get; init; }
 }
 
+public record CarUpdateDto : IEntity
+{
+    public required Guid EntityId { get; init; }
+    
+    public required string Brand { get; init; }
+    public required Color Color { get; init; }
+    public required decimal Price { get; init; }
+    
+    public string? CurrentOwner { get; init; }
+    public int? Mileage { get; init; }
+    
+    public required bool IsAvailable { get; init; }
+}

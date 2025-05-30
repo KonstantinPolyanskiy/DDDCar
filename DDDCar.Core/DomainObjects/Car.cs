@@ -24,17 +24,17 @@ public enum Condition
 /// <summary> Фото машины </summary>
 public sealed class Photo
 {
+    public Guid Id { get; private set; }
     public string Extension { get; private set; } = null!;
     public byte[] Data { get; private set; } = null!;
 
     public CreatePhotoResult Create(string extension, byte[] data)
     {
-        Guid photoId = Guid.NewGuid();
-        
+        Id = Guid.NewGuid();
         Extension = extension;
         Data = data;
         
-        return new CreatePhotoResult {Status = CreatePhotoAction.Success, Id = photoId};
+        return new CreatePhotoResult {Status = CreatePhotoAction.Success};
     }
 }
 
@@ -74,6 +74,36 @@ public sealed class Car
         Condition = CalculateCondition(currentOwner, mileage);
 
         return new CreateCarResult { Status = CreateCarAction.Success, CarId = carId };
+    }
+    
+    /// <summary>
+    /// Восстанавливает машину из данных уже ранее сохраненной машины
+    /// </summary>
+    public static Car Reconstitute(Guid managerId, string brand, Color color, decimal price, string? currentOwner,
+        int? mileage, Condition condition, bool isAvailable)
+    {
+        return new Car
+        {
+            Brand        = brand,
+            Color        = color,
+            Price        = price,
+            Condition    = condition,
+            IsAvailable  = isAvailable,
+            CurrentOwner = currentOwner,
+            Mileage      = mileage,
+            ManagerId    = managerId
+        };
+    }
+    
+    /// <summary>
+    /// Восстанавливает у машины фото из ранее сохраненных данных
+    /// </summary>
+    public void ReconstitutePhoto(string extension, byte[] data)
+    {
+        var photo = new Photo();
+        photo.Create(extension, data);
+        
+        Photo = photo;
     }
     
     /// <summary>
@@ -131,11 +161,12 @@ public sealed class Car
             return new AttachPhotoResult { Status = AttachPhotoAction.ErrorEnoughPermission };
         
         Photo photo = new Photo();
-        var result = photo.Create(photoExtension, photoData);
+        
+        photo.Create(photoExtension, photoData);
         
         Photo = photo;
         
-        return new AttachPhotoResult { Status = AttachPhotoAction.Success, PhotoId = result.Id };
+        return new AttachPhotoResult { Status = AttachPhotoAction.Success };
     }
 
     /// <summary>
@@ -156,15 +187,21 @@ public sealed class Car
     /// <summary>
     /// Уровень доступа к машине
     /// </summary>
-    public ViewLevelResult ViewLevel(User user)
+    public ViewLevelResult ViewLevel(User? user)
     {
+        if (user == null)
+            if (IsAvailable)
+                return ViewLevelResult.Denied();
+            else 
+                return ViewLevelResult.Restricted();
+
         if (IsAdmin(user))
-            return new ViewLevelResult { Status = ViewAction.Full };
+            return ViewLevelResult.Full();
         
         if (IsResponsiveManager(user))
-            return new ViewLevelResult { Status = ViewAction.Full };
+            return ViewLevelResult.Full();
         
-        return new ViewLevelResult { Status = ViewAction.Restricted };
+        return ViewLevelResult.Restricted();
     }
     
     /// <summary>
